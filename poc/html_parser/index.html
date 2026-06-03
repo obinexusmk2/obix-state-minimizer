@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTML Parser Test Document</title>
+    <!-- Test comment with special chars: <>&'" -->
+    <style>
+        body { font-family: Arial, sans-serif; }
+    </style>
+</head>
+<body>
+    <!-- Test nested elements and attributes -->
+    <div id="container" class="main-content" data-test="value">
+        <h1>HTML Parser Test</h1>
+        
+        <!-- Test text content -->
+        <p>This is a paragraph with <strong>bold text</strong> and <em>emphasized text</em>.</p>
+        
+        <!-- Test self-closing tags -->
+        <img src="test.jpg" alt="Test image"/>
+        <br/>
+        
+        <!-- Test whitespace handling -->
+        <div class="whitespace-test">
+            Text with    multiple    spaces
+            and line
+            breaks
+        </div>
+        
+        <!-- Test special characters -->
+        <p class="special-chars">Special characters: &lt; &gt; &amp; &quot; &apos;</p>
+        
+        <!-- Test empty elements -->
+        <div></div>
+        <span>   </span>
+        
+        <!-- Test lists -->
+        <ul>
+            <li>Item 1</li>
+            <li>Item 2
+                <ul>
+                    <li>Nested item 1</li>
+                    <li>Nested item 2</li>
+                </ul>
+            </li>
+            <li>Item 3</li>
+        </ul>
+        
+        <!-- Test forms -->
+        <form action="/submit" method="post">
+            <input type="text" name="username" required/>
+            <input type="password" name="password"/>
+            <select name="options">
+                <option value="1">Option 1</option>
+                <option value="2">Option 2</option>
+            </select>
+            <button type="submit">Submit</button>
+        </form>
+        
+        <!-- Test tables -->
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Header 1</th>
+                    <th>Header 2</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Cell 1</td>
+                    <td>Cell 2</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <!-- Test CDATA section -->
+        <![CDATA[
+            This is a CDATA section with <tags> and &entities;
+        ]]>
+        
+        <!-- Test conditional comments -->
+        <!--[if IE]>
+            <p>This is visible in IE</p>
+        <![endif]-->
+        
+        <!-- Test script tags -->
+        <script type="text/javascript">
+            // This is a JavaScript comment
+            function test() {
+                return '<div>This should not be parsed as HTML</div>';
+            }
+        </script>
+    </div>
+</body>
+</html>

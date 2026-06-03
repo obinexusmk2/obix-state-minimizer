@@ -1,0 +1,46 @@
+{
+  "name": "@obinexusltd/obix-state-minimizer",
+  "version": "1.0.0",
+  "description": "Automaton state minimizer for OBIX — partition-refinement FSM minimization, AST optimization, and Unicode structural normalization (USCN).",
+  "author": "Nnamdi Michael Okpala <support@obinexus.org>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/obinexusmk2/obix-state-minimizer.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "prepublishOnly": "npm run build && npm test"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "obix",
+    "obinexus",
+    "automaton",
+    "state-machine",
+    "minimization",
+    "fsm",
+    "ast",
+    "unicode",
+    "uscn",
+    "isomorphic-reduction"
+  ],
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.4.0",
+    "typescript": "~5.4.0"
+  }
+}

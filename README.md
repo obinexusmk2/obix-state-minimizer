@@ -1,6 +1,7 @@
 # @obinexusltd/obix-state-minimizer
 
-> Automaton state minimization, AST optimization, and Unicode structural normalization (USCN) for the [OBIX](https://github.com/obinexusmk2/obix) ecosystem.
+> Minimize HTML/CSS component element state transitions using formal automaton
+> theory. Part of the [OBIX](https://github.com/obinexusmk2/obix) ecosystem.
 
 **Author:** Nnamdi Michael Okpala  
 **Org:** OBINexus Computing — [@obinexusmk2](https://github.com/obinexusmk2)  
@@ -9,19 +10,28 @@
 
 ---
 
-## Overview
+## What This Library Does
 
-This library implements the formal automaton minimization theory described in:
+Every interactive HTML element — a button, an input, a dropdown — is a
+**finite state machine (FSM)**. Its states (`default`, `loading`, `disabled`,
+`invalid`, ...) change in response to user events (`click`, `blur`, `focus`, ...).
 
-- *Automaton State Minimization and AST Optimization* — Okpala, N.M. (2024)
-- *State Machine Minimization: An Application-Based Case Study on Tennis* — Okpala, N.M. (2025)
-- *Isomorphic Reduction — Not a Bug, But a Feature* — Okpala, N.M. (2025)
+Naively modelled, these machines contain **redundant states** — states that
+behave identically and produce the same HTML and ARIA output. Redundant states
+mean redundant CSS rules, redundant ARIA branches, and redundant revision entries.
 
-Given a finite state machine `A = (Q, Σ, δ, q₀, F)`, the library:
+This library applies **Myhill-Nerode partition refinement** to find and eliminate
+those redundant states, producing the minimal equivalent state machine. The result
+drives which CSS classes to apply, which ARIA attributes to set, and which component
+revisions to store.
 
-1. **Minimizes** it to the smallest equivalent FSM using Myhill-Nerode partition refinement
-2. **Optimizes** the corresponding Abstract Syntax Tree by removing redundant nodes
-3. **Normalizes** Unicode input via the USCN framework (isomorphic reduction)
+```
+ObixButton naive model:  7 states
+ObixButton minimized:    5 states  (disabled + loadingDisabled merged)
+
+ObixInput naive model:   7 states  
+ObixInput minimized:     5 states  (invalid + invalidFocused merged, valid + validTouched merged)
+```
 
 ---
 
@@ -31,208 +41,202 @@ Given a finite state machine `A = (Q, Σ, δ, q₀, F)`, the library:
 npm i @obinexusltd/obix-state-minimizer
 ```
 
-Or clone the repo:
-
-```bash
-git clone https://github.com/obinexusmk2/obix-state-minimizer
-cd obix-state-minimizer
-npm install
-npm run build
-```
-
 ---
 
-## Quick Start
+## Quick Example
 
-### FSM Minimization
-
-```ts
-import { minimizeFSM } from '@obinexusltd/obix-state-minimizer';
+```typescript
+import { minimizeFSM, buildAST, ASTOptimizer } from '@obinexusltd/obix-state-minimizer';
 import type { FSM } from '@obinexusltd/obix-state-minimizer';
 
-// Define A = (Q, Σ, δ, q₀, F)
-const fsm: FSM<'A' | 'B' | 'C', 'a' | 'b'> = {
-  states: new Set(['A', 'B', 'C']),
-  alphabet: new Set(['a', 'b']),
-  initialState: 'A',
-  acceptingStates: new Set(['B', 'C']),      // B and C are equivalent
-  transition(state, symbol) {
-    const t = {
-      A: { a: 'B', b: 'C' },
-      B: { a: 'B', b: 'B' },
-      C: { a: 'C', b: 'C' },
-    } as const;
-    return t[state][symbol];
-  },
+// Model ObixButton states as a formal FSM
+type ButtonState = 'default' | 'focused' | 'loading' | 'disabled' | 'loadingDisabled';
+type ButtonEvent = 'focus' | 'blur' | 'startLoading' | 'stopLoading' | 'disable' | 'enable' | 'click';
+
+const buttonFSM: FSM<ButtonState, ButtonEvent> = {
+  states:          new Set(['default', 'focused', 'loading', 'disabled', 'loadingDisabled']),
+  alphabet:        new Set(['focus', 'blur', 'startLoading', 'stopLoading', 'disable', 'enable', 'click']),
+  initialState:    'default',
+  acceptingStates: new Set(['default', 'focused']),
+  transition(state, event) { /* ... */ },
 };
 
-const result = minimizeFSM(fsm);
-console.log(result.originalStateCount);   // 3
-console.log(result.minimizedStateCount);  // 2  — B and C merged
-console.log(result.removedStates);        // ['C'] (or ['B'])
-```
+// Minimize: find behaviourally identical states
+const result = minimizeFSM(buttonFSM);
+console.log(result.originalStateCount);   // 5
+console.log(result.minimizedStateCount);  // 4  (disabled + loadingDisabled merged)
 
-### AST Optimization
+// Both produce 'obix-button--disabled' — one CSS rule covers both
+const disabledRep = result.stateMap.get('disabled');
+const loadingDisabledRep = result.stateMap.get('loadingDisabled');
+console.log(disabledRep === loadingDisabledRep); // true
 
-```ts
-import { minimizeFSM, buildAST, ASTOptimizer } from '@obinexusltd/obix-state-minimizer';
-
-const result = minimizeFSM(fsm);
-const ast = buildAST(fsm, result);
+// Visualize the minimized state machine
+const ast = buildAST(buttonFSM, result);
 console.log(ASTOptimizer.serialize(ast));
 ```
 
-### Unicode Normalization (USCN)
+---
 
-```ts
+## Documentation
+
+| Document | Description |
+|---|---|
+| [docs/01-theory.md](docs/01-theory.md) | FSM theory, Myhill-Nerode equivalence, minimization algorithm |
+| [docs/02-html-element-states.md](docs/02-html-element-states.md) | Button, input, select, modal, tabs — before and after minimization |
+| [docs/03-css-state-transitions.md](docs/03-css-state-transitions.md) | CSS class generation, ARIA mapping, reduced-motion support |
+| [docs/04-api-reference.md](docs/04-api-reference.md) | Complete API: minimizeFSM, buildAST, USCNormalizer, BaseTokenizer, BaseParser |
+| [docs/05-integration-guide.md](docs/05-integration-guide.md) | Step-by-step integration with @obinexusltd/obix-component-runtime |
+
+---
+
+## Examples
+
+Runnable TypeScript examples in the `examples/` folder:
+
+| Example | What it shows |
+|---|---|
+| [examples/01-component-lifecycle-fsm.ts](examples/01-component-lifecycle-fsm.ts) | OBIX lifecycle (CREATED→UPDATED→HALTED→DESTROYED) as minimized FSM |
+| [examples/02-button-state-machine.ts](examples/02-button-state-machine.ts) | ObixButton states — discovers disabled + loadingDisabled are equivalent |
+| [examples/03-form-validation-fsm.ts](examples/03-form-validation-fsm.ts) | ObixInput validation — merges invalid+invalidFocused, valid+validTouched |
+| [examples/04-uscn-input-sanitizer.ts](examples/04-uscn-input-sanitizer.ts) | USCN normalizer for form input, file upload paths, search queries |
+| [examples/05-component-state-tracker.ts](examples/05-component-state-tracker.ts) | Epsilon-free revision tracker (ObixTrackerA exhaustive / ObixTrackerB minimal) |
+| [examples/06-html-output-tokenizer.ts](examples/06-html-output-tokenizer.ts) | BaseTokenizer subclass to parse and validate OBIX render(state) output |
+
+```bash
+npx tsx examples/01-component-lifecycle-fsm.ts
+npx tsx examples/03-form-validation-fsm.ts
+```
+
+---
+
+## Four Modules
+
+### 1. FSM Minimizer (`src/minimizer/`)
+
+Implements Myhill-Nerode partition refinement. The core of the library.
+
+```typescript
+import { minimizeFSM, partitionRefinement } from '@obinexusltd/obix-state-minimizer';
+
+const result = minimizeFSM(fsm);
+// result.stateMap   — original state -> representative
+// result.removedStates — states that were merged
+```
+
+### 2. AST Optimizer (`src/minimizer/ASTOptimizer.ts`)
+
+Three-phase optimization derived from `poc/node_html_parser` and `poc/node_js_parser`:
+
+- **Phase 1** — BFS from `q0`, cycle-safe
+- **Phase 2** — Node equivalence classes by signature
+- **Phase 3** — Optimization metrics (node reduction ratio)
+
+```typescript
+import { buildAST, getASTMetrics, ASTOptimizer } from '@obinexusltd/obix-state-minimizer';
+
+const ast = buildAST(fsm, result);
+const metrics = getASTMetrics(fsm, result);
+console.log(ASTOptimizer.serialize(ast));
+```
+
+### 3. USCN Normalizer (`src/normalizer/`)
+
+Unicode-Only Structural Charset Normalizer — sanitizes form input before
+passing to OBIX component actions.
+
+Security invariant: `validate(normalize(s)) === validate(canonical(s))`
+
+```typescript
 import { normalizeInput, isPathSafe } from '@obinexusltd/obix-state-minimizer';
 
-// Collapse encoding variants to canonical form
-const { canonical } = normalizeInput('%2e%2e%2fetc%2fpasswd');
-console.log(canonical);  // ../etc/passwd
+// Sanitize before btn.actions.change(state, value)
+const { canonical } = normalizeInput(rawUserInput);
 
-// Security guard — validate after normalization
-console.log(isPathSafe('%2e%2e%2f'));           // false (path traversal)
-console.log(isPathSafe('assets/logo.png'));     // true
+// Guard ObixFileUpload
+if (!isPathSafe(uploadedPath)) throw new Error('Path traversal blocked');
 ```
 
-### Tennis Tracker (Reference Implementation)
+### 4. BaseTokenizer + BaseParser (`src/tokenizer/`, `src/parser/`)
 
-```ts
-import {
-  TennisTrackerA,
-  TennisTrackerB,
-  minimizeTennisFSM,
-} from '@obinexusltd/obix-state-minimizer';
+Generic state machine tokenizer and parser base classes. Extend them to build
+language-specific processors for HTML, CSS, or JavaScript output from OBIX components.
 
-// Program A — exhaustive (records every event including no-scores)
-const trackerA = new TennisTrackerA();
-trackerA.recordEvent('POINT');     // '15'
-trackerA.recordEvent('NO_SCORE'); // 'LOVE' recorded again (redundant)
+```typescript
+import { BaseTokenizer, BaseParser, createState } from '@obinexusltd/obix-state-minimizer';
 
-// Program B — minimal (skips epsilon / no-score transitions)
-const trackerB = new TennisTrackerB();
-trackerB.recordEvent('POINT');     // '15'
-trackerB.recordEvent('NO_SCORE'); // state unchanged, nothing recorded
+// Tokenize OBIX render(state) output for post-render ARIA validation
+class ObixHTMLTokenizer extends BaseTokenizer<MyToken> {
+  protected nextToken(): void { /* ... */ }
+}
 
-// FSM minimization of the tennis automaton
-const result = minimizeTennisFSM();
-console.log(result.originalStateCount);   // 5
-console.log(result.minimizedStateCount);  // ≤ 5 (equivalent states merged)
+// Parser with built-in state minimization
+class ObixHTMLParser extends BaseParser<MyToken> {
+  protected initializeStates(): void { /* define states + transitions */ }
+  protected processToken(token, node, stack) { /* build AST */ }
+}
+
+// parse() automatically runs minimizeParserStates() before processing tokens
+const { root, metrics } = new ObixHTMLParser().parse(tokens);
 ```
 
 ---
 
-## API Reference
+## How CSS Minimization Works
 
-### `minimizeFSM(fsm)`
+Before minimization, a naive ObixButton needs 7 CSS rules. After minimization, 5:
 
-Runs Myhill-Nerode partition refinement and returns a `MinimizationResult`:
-
-| Field | Type | Description |
+| State | Before | After |
 |---|---|---|
-| `minimized` | `FSM<string, A>` | The reduced FSM |
-| `stateMap` | `Map<S, string>` | Original state → representative |
-| `originalStateCount` | `number` | |
-| `minimizedStateCount` | `number` | |
-| `removedStates` | `S[]` | States merged into representatives |
+| `default` | `.obix-button` | `.obix-button` |
+| `focused` | `.obix-button:focus-visible` | `.obix-button:focus-visible` |
+| `loading` | `.obix-button--loading` | `.obix-button--loading` |
+| `disabled` | `.obix-button--disabled` | `.obix-button[aria-disabled="true"]` |
+| `loadingDisabled` | `.obix-button--loading.obix-button--disabled` | **eliminated** (merged with disabled) |
 
-### `buildAST(fsm, result)`
+The merged state means one ARIA attribute (`aria-disabled="true"`) covers both
+cases — and one CSS rule styles them both. No redundant selectors.
 
-Builds an `ASTNode` tree from the minimized FSM. Cycles are tracked to avoid infinite traversal.
-
-### `ASTOptimizer.serialize(node)`
-
-Returns a human-readable indented string of the AST.
-
-### `normalizeInput(input)`
-
-Returns `USCNResult`:
-
-| Field | Type | Description |
-|---|---|---|
-| `canonical` | `string` | Fully decoded, NFC-normalized form |
-| `detectedEncoding` | `EncodingType` | `'direct' \| 'uri-encoded' \| 'utf8-overlong' \| 'mixed' \| 'canonical'` |
-| `normalized` | `boolean` | Whether any transformation was applied |
-
-### `isPathSafe(input)`
-
-Returns `true` if the path is free of traversal sequences after full normalization.
-
----
-
-## Project Structure
-
-```
-obix-state-minimizer/
-├── src/
-│   ├── types.ts                        # FSM 5-tuple, ASTNode, result types
-│   ├── index.ts                        # Public API exports
-│   ├── minimizer/
-│   │   ├── PartitionRefinement.ts      # Myhill-Nerode partition algorithm
-│   │   ├── StateMinimizer.ts           # Minimized FSM construction
-│   │   └── ASTOptimizer.ts             # AST build & serialization
-│   ├── normalizer/
-│   │   └── USCNormalizer.ts            # USCN — isomorphic reduction
-│   └── tracker/
-│       └── TennisTracker.ts            # Program A/B reference + tennis FSM
-├── tests/
-│   ├── minimizer.test.ts
-│   ├── normalizer.test.ts
-│   └── tracker.test.ts
-├── package.json
-├── tsconfig.json
-├── jest.config.js
-├── LICENSE
-└── README.md
-```
+See [docs/03-css-state-transitions.md](docs/03-css-state-transitions.md) for
+the full CSS mapping for buttons, inputs, selects, modals, and navigation.
 
 ---
 
 ## Development
 
 ```bash
-# Build TypeScript
-npm run build
-
-# Run tests
-npm test
-
-# Coverage report
-npm run test:coverage
+git clone https://github.com/obinexusmk2/obix-state-minimizer
+cd obix-state-minimizer
+npm install
+npm run build   # tsc -> dist/
+npm test        # 28 tests pass
 ```
 
 ---
 
-## Theoretical Background
+## Theoretical Foundation
 
-The minimization algorithm is grounded in automata theory:
+**State equivalence** — two states `p` and `q` are equivalent (`p ~ q`) iff:
 
-**State Equivalence** — two states `p, q` are equivalent (`p ~ q`) iff:
 ```
-∀w ∈ Σ*,  δ*(p, w) ∈ F  ⟺  δ*(q, w) ∈ F
-```
-
-**Minimization** produces `A' = (Q', Σ, δ', q'₀, F')` where `Q'` is the set of
-equivalence classes under `~`.
-
-**USCN Security Invariant:**
-```
-validate(normalize(s)) ≡ validate(canonical(s))
+for all w in Sigma*:  delta*(p, w) in F  <=>  delta*(q, w) in F
 ```
 
----
+**Minimized automaton**: `A' = (Q', Sigma, delta', q0', F')` where `Q'` is
+the partition of `Q` into equivalence classes under `~`.
 
-## Related OBIX Repositories
+**USCN security invariant**:
 
-| Repo | Description |
-|---|---|
-| [`obinexusmk2/obix`](https://github.com/obinexusmk2/obix) | OBIX UI/UX runtime |
-| [`obinexusmk2/obix-state-minimizer`](https://github.com/obinexusmk2/obix-state-minimizer) | This package |
+```
+validate(normalize(s)) === validate(canonical(s))
+```
+
+Full theory: [docs/01-theory.md](docs/01-theory.md)
 
 ---
 
 ## License
 
-MIT © 2024 Nnamdi Michael Okpala / OBINexus Computing  
-support@obinexus.org
+MIT (c) 2024 Nnamdi Michael Okpala / OBINexus Computing — support@obinexus.org
+
+> "We don't need more rules. We need better structure." — OBINexus Philosophy
