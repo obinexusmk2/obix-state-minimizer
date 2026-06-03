@@ -15,5 +15,3 @@ export type { TokenBase, TokenizerError, TokenizerResult, TokenizerOptions } fro
 export { BaseParser, createState, createNode } from './parser/Parser';
 export type { ParserState, ParseNode, MinimizationMetrics } from './parser/Parser';
 
-export { TennisTrackerA, TennisTrackerB, buildTennisFSM, minimizeTennisFSM } from './tracker/TennisTracker';
-export type { TennisScore, TennisEvent, MatchRecord } from './tracker/TennisTracker';
